@@ -6,6 +6,7 @@ namespace App\DataPersister;
 
 use ApiPlatform\Core\DataPersister\ContextAwareDataPersisterInterface;
 use App\Entity\Article;
+use App\Entity\Tag;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -41,7 +42,6 @@ class ArticleDataPersister implements ContextAwareDataPersisterInterface
         $this->_request       = $request->getCurrentRequest();
     }
 
-
     /**
      * {@inheritdoc}
      */
@@ -67,6 +67,19 @@ class ArticleDataPersister implements ContextAwareDataPersisterInterface
         // Set the updatedAt value if it's not a POST request
         if ($this->_request->getMethod() !== 'POST') {
             $data->setUpdatedAt(new \DateTime());
+        }
+
+        $tagRepository = $this->_entityManager->getRepository(Tag::class);
+        foreach ($data->getTags() as $tag) {
+            $t = $tagRepository->findOneByLabel($tag->getLabel());
+
+            // if the tag exists, don't persist it
+            if ($t !== null) {
+                $data->removeTag($tag);
+                $data->addTag($t);
+            } else {
+                $this->_entityManager->persist($tag);
+            }
         }
 
         $this->_entityManager->persist($data);
